@@ -1,8 +1,10 @@
 # Sentinel
 
-> A compiler-agnostic AI-assisted build copilot that wraps your compiler to diagnose and fix errors automatically.
+> A compiler-agnostic AI-assisted build copilot that fixes compilation errors automatically.
 
-Sentinel is a compiler-agnostic CLI wrapper built in Rust that uses AI to diagnose and fix build errors. Run your normal compiler through Sentinel, and it will analyze warnings and errors, apply targeted fixes, recompile automatically, and roll back changes if a fix fails.
+Sentinel is a compiler-agnostic CLI wrapper built in Rust that uses AI to fix **compilation errors only**. Run your normal compiler through Sentinel, and if the build fails, it will apply minimal fixes to make it compile, revalidate, and roll back if a fix doesn't work.
+
+**Important**: Sentinel fixes compilation errors. It does not refactor, improve, optimize, or change code that already compiles.
 
 ## Status
 
@@ -10,10 +12,11 @@ Sentinel is a compiler-agnostic CLI wrapper built in Rust that uses AI to diagno
 
 ## Features
 
+- **Silent Operation** — No compiler noise. Sentinel suppresses all warnings, errors, and diagnostics. You see a clean terminal.
 - **Compiler Agnostic** — Works in front of standard compilers such as GCC, G++, and Clang.
-- **AI-Powered Diagnostics** — Uses AI to diagnose compiler-reported problems and generate narrowly scoped fixes.
-- **Self-Healing Loop** — Automatically recompiles after each applied fix to validate changes.
-- **Safe by Default** — Restores original source state if a suggested fix fails validation or makes things worse.
+- **AI-Powered Fixes** — Uses AI to fix compilation errors with minimal, targeted changes.
+- **Self-Healing Loop** — Automatically recompiles after each fix to validate changes. All done silently.
+- **Safe by Default** — Restores original source state if a fix fails or makes things worse.
 - **Rust-Fast** — Built in Rust for speed and reliability.
 
 ## Quick Start
@@ -26,20 +29,19 @@ sentinel gcc main.c -o main
 sentinel clang++ src/main.cpp -o app
 ```
 
-Sentinel executes the compiler, captures the output, and if errors occur, it begins the self-healing loop.
+Sentinel runs silently. No compiler output clutters your terminal. It either works, or it doesn't.
 
 ## How It Works
 
-Sentinel acts as a smart wrapper around your existing toolchain:
+Sentinel wraps your compiler and handles errors silently:
 
-1. **Invocation**: You invoke the compiler through Sentinel (e.g., `sentinel gcc ...`).
-2. **Capture**: Sentinel executes the command and captures `stdout` and `stderr`.
-3. **Diagnosis**: If the build fails, Sentinel sends relevant diagnostics and source context to the AI.
-4. **Fix**: Sentinel applies a small, targeted fix to the source file.
-5. **Validation**: Sentinel triggers a recompile automatically.
-6. **Rollback**: If the fix fails validation, Sentinel restores the file to its previous state.
+1. **Invocation**: Run your compiler through Sentinel (e.g., `sentinel gcc ...`).
+2. **Capture**: Sentinel intercepts all compiler output — you see nothing.
+3. **Fix**: If compilation fails, Sentinel silently applies minimal fixes.
+4. **Validate**: Sentinel recompiles to verify the fix works.
+5. **Rollback**: If a fix fails, Sentinel restores the original file.
 
-The loop continues until the build succeeds or a retry limit is reached.
+The loop continues silently until compilation succeeds or Sentinel gives up. No warnings, no errors, no noise.
 
 ## Safety Model
 
@@ -52,12 +54,21 @@ Sentinel is built on a "Trust but Verify" model:
 
 ## Scope
 
-Sentinel is designed to handle:
+Sentinel fixes **compilation errors only**:
 
-- Syntax mistakes
-- Misspellings and symbol-name issues
-- Common compiler-reported warnings and errors
-- Minor, local logic issues where compiler context is sufficient
+- Missing semicolons
+- Unbalanced braces/parentheses  
+- Typos in identifiers
+- Missing includes
+- Type mismatches that block compilation
+
+Sentinel does **NOT**:
+
+- Refactor code
+- Fix warnings (unless they block compilation)
+- Improve code style
+- Optimize performance
+- Change code that already compiles
 
 ## Roadmap
 
