@@ -1,20 +1,26 @@
 use clap::Parser;
-use std::process::Command;
+use std::process::{Command, Output};
 
 #[derive(Parser)]
 struct Cli {
     // NOTE: this is how you add a flag
     // the flags value will auto bind
-    #[arg(
-        short = 'f',
-        long = "flag",
-        default_value = "this is the flag default value"
-    )]
-    flag: String,
+    #[arg(short, long, default_value = "opencode/big-pickle")]
+    model: String,
 
     // this will simply hold the the rest of the cmd, i.e. the compilation command
     compiler: String,
     compilation_args: Vec<String>,
+}
+
+fn fix(args: Cli, _command_res: Output) {
+    let output = Command::new("opencode")
+        .args(["-m", &args.model])
+        .args(["run", "this is a test, just say hello!"])
+        .output()
+        .expect("ERROR: Failed ask opencode");
+
+    print!("{:#?}", output)
 }
 
 fn main() {
@@ -26,16 +32,19 @@ fn main() {
         panic!("ERROR: Cannot run without compilation cmd")
     }
 
-    println!(
-        "{:?} {:?} {:?}",
-        args.compiler, args.compilation_args, args.flag
-    );
-
     // run the compilation command
     let output = Command::new(args.compiler.clone())
         .args(args.compilation_args.clone())
         .output()
-        .expect("failed to execute process");
+        .expect("ERROR: Failed execute compilation commmand");
 
-    println!("{:#?}", output)
+    println!("{:?}", output);
+
+    // check if we have any errors from this cmd
+    // if we do, lets just return as theres is nothing to fix
+    // if output.stderr.is_empty() {
+    //     return;
+    // }
+
+    fix(args, output);
 }
