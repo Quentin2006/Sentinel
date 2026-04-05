@@ -1,7 +1,10 @@
 [package]
-name = "sentinel"
+name = "ai-sentinel"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
+description = "Compilation wrapper used to fix misc compilations bugs"
+repository = "https://github.com/Quentin2006/Sentinel"
 
 [dependencies]
 clap = { version = "4.6.0", features = ["derive"] }

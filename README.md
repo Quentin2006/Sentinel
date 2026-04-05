@@ -72,10 +72,8 @@ Sentinel does **NOT**:
 
 ## Roadmap
 
-- [ ] Compiler wrapper execution and command proxying
-- [ ] Diagnostic capture and parsing (GCC/Clang)
-- [ ] AI integration for targeted fix generation
-- [ ] Self-healing recompile loop logic
+- [x] Compiler wrapper execution and command proxying
+- [x] AI integration for targeted fix generation
 - [ ] Automatic snapshot and rollback safety system
 - [ ] Configuration file support (`Sentinel.toml`)
 - [ ] Interactive fix review mode
