@@ -10,14 +10,11 @@ Sentinel is a compiler-agnostic CLI wrapper built in Rust that uses AI to fix **
 
 🚧 **Early Development** — This project is just starting. Nothing is stable yet.
 
-## Features
+## Installation
 
-- **Silent Operation** — No compiler noise. Sentinel suppresses all warnings, errors, and diagnostics. You see a clean terminal.
-- **Compiler Agnostic** — Works in front of standard compilers such as GCC, G++, and Clang.
-- **AI-Powered Fixes** — Uses AI to fix compilation errors with minimal, targeted changes.
-- **Self-Healing Loop** — Automatically recompiles after each fix to validate changes. All done silently.
-- **Safe by Default** — Restores original source state if a fix fails or makes things worse.
-- **Rust-Fast** — Built in Rust for speed and reliability.
+```bash
+cargo install ai-sentinel
+```
 
 ## Quick Start
 
@@ -27,6 +24,13 @@ Run your normal compiler through Sentinel:
 sentinel g++ main.cpp
 sentinel gcc main.c -o main
 sentinel clang++ src/main.cpp -o app
+```
+
+For development:
+
+```bash
+cargo run -- g++ main.cpp
+cargo run -- gcc main.c -o main
 ```
 
 Sentinel runs silently. No compiler output clutters your terminal. It either works, or it doesn't.
