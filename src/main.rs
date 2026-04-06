@@ -1,8 +1,54 @@
 use clap::{Parser, ValueEnum};
 use std::{
     fs,
-    process::{exit, Command, Output},
+    process::{Command, Output, exit},
 };
+
+const NUM_STEPS: u8 = 2;
+
+mod msg {
+    use colored::Colorize;
+
+    use crate::NUM_STEPS;
+
+    pub fn step(text: &str) {
+        static mut CUR_STEP: u8 = 0;
+        unsafe { CUR_STEP += 1 };
+        let step = unsafe { CUR_STEP };
+        eprintln!(
+            "{} {}",
+            format!("[{}/{}]", step, NUM_STEPS).dimmed(),
+            text.bold()
+        );
+    }
+
+    pub fn success(text: &str) {
+        eprintln!("{} {}", "✓".green().bold(), text.green());
+    }
+
+    #[allow(dead_code)]
+    pub fn warn(text: &str) {
+        eprintln!("{} {}", "⚠".yellow().bold(), text.yellow());
+    }
+
+    pub fn error(code: &str, text: &str, hint: Option<&str>) {
+        eprintln!(
+            "{} {}{} {}",
+            "✗".red().bold(),
+            "error".red().bold(),
+            format!("[{}]:", code).red(),
+            text
+        );
+        if let Some(h) = hint {
+            eprintln!("  {} {}", "hint:".cyan(), h);
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn info(text: &str) {
+        eprintln!("{} {}", "→".blue().bold(), text);
+    }
+}
 
 #[derive(Clone, ValueEnum, Debug)]
 enum Level {
@@ -31,47 +77,55 @@ fn get_skill(skill_name: &str) -> Option<String> {
     fs::read_to_string(skill_path).ok()
 }
 
-fn fix(args: Cli, command_res: Output) {
+fn default_opencode_prompt(args: &Cli, command_res: &Output) -> Vec<String> {
     let skill_str = match get_skill("debugging.md") {
         Some(s) => s,
         None => {
-            eprintln!("sentinel: cannot locate skill");
+            msg::error(
+                "S001",
+                "cannot locate skill",
+                Some("ensure skills directory exists at src/skills/"),
+            );
             exit(1);
         }
     };
 
-    let output = Command::new("opencode")
-        .args(["-m", &args.model])
-        .arg("--pure")
-        .args([
-            "run",
-            format!("{}: {}", "The following is your skill", skill_str.as_str()).as_str(),
-        ])
-        .arg(
-            format!(
-                "{}: {:#?}",
-                "the following is the compilation results", command_res
-            )
-            .as_str(),
-        )
-        .arg(format!(
+    vec![
+        "-m".to_string(),
+        args.model.clone(),
+        "--pure".to_string(),
+        "run".to_string(),
+        skill_str,
+        format!("{}: {:#?}", "the following is the compilation results", command_res),
+        format!(
             "Ensure you use the following compilation command: {} {}",
             args.compiler,
             args.compilation_args.join(" ")
-        ))
-        .arg(format!(
+        ),
+        format!(
             "Fix level: {:?}. At 'Errors' level fix ONLY compilation errors (ignore warnings). At 'Warning' level fix errors AND warnings. At 'Logic' level fix errors, warnings, AND logic issues.",
             args.level
-        ))
-        .arg("Fix the issues according to the level, and provide a summary of what you did, dont stop till its fixed.")
-        .output();
+        ),
+        "Fix the issues according to the level, and provide a summary of what you did, dont stop till its fixed."
+            .to_string(),
+    ]
+}
+
+fn fix(args: Cli, command_res: Output) {
+    msg::step("Applying fix...");
+    let res = default_opencode_prompt(&args, &command_res);
+    let output = Command::new("opencode").args(res).output();
 
     match output {
         Ok(o) => {
             if o.status.success() {
-                eprintln!("sentinel: fix applied successfully");
+                msg::success("fix applied successfully");
             } else {
-                eprintln!("sentinel: fix attempt failed");
+                msg::error(
+                    "S002",
+                    "fix attempt failed",
+                    Some("AI could not resolve the compilation errors"),
+                );
                 exit(1);
             }
 
@@ -81,7 +135,11 @@ fn fix(args: Cli, command_res: Output) {
             eprint!("{}", stdout);
         }
         Err(_) => {
-            eprintln!("sentinel: failed to invoke opencode");
+            msg::error(
+                "S003",
+                "failed to invoke opencode",
+                Some("ensure opencode is installed and in PATH"),
+            );
             exit(1);
         }
     }
@@ -91,27 +149,36 @@ fn main() {
     let args = Cli::parse();
 
     if args.compiler.is_empty() {
-        eprintln!("sentinel: no compiler specified");
+        msg::error(
+            "S004",
+            "no compiler specified",
+            Some("usage: sentinel <compiler> [args...]"),
+        );
         exit(1);
     }
 
+    msg::step("Compiling...");
     let output = match Command::new(args.compiler.clone())
         .args(args.compilation_args.clone())
         .output()
     {
         Ok(o) => o,
         Err(_) => {
-            eprintln!("sentinel: failed to execute compiler");
+            msg::error(
+                "S005",
+                "failed to execute compiler",
+                Some(&format!("could not run '{}'", args.compiler)),
+            );
             exit(1);
         }
     };
 
     if output.stderr.is_empty() {
-        eprintln!("sentinel: compiled successfully");
+        msg::success("compiled successfully");
         return;
     }
 
-    eprintln!("sentinel: compilation failed, attempting fix...\n");
+    msg::warn("compilation failed, attempting fix...");
 
     if let Ok(stderr) = std::str::from_utf8(&output.stderr) {
         eprint!("{}", stderr);

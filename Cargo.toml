@@ -8,3 +8,4 @@ repository = "https://github.com/Quentin2006/Sentinel"
 
 [dependencies]
 clap = { version = "4.6.0", features = ["derive"] }
+colored = "3.1.1"
