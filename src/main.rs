@@ -1,4 +1,5 @@
 use clap::{Parser, ValueEnum};
+use colored::Colorize;
 use std::{
     fs,
     process::{Command, Output, exit},
@@ -17,8 +18,11 @@ struct Cli {
     #[arg(short, long, default_value = "opencode/big-pickle")]
     model: String,
 
-    #[arg(short, long, value_enum, default_value_t= Level::Warning)]
+    #[arg(short, long, value_enum, default_value_t= Level::Error)]
     level: Level,
+
+    #[arg(short, long, default_value_t = false)]
+    verbose: bool,
 
     compiler: String,
     compilation_args: Vec<String>,
@@ -32,6 +36,31 @@ fn get_skill(skill_name: &str) -> Option<String> {
     fs::read_to_string(skill_path).ok()
 }
 
+fn render_marked_output(text: &str) {
+    for mut line in text.lines() {
+        let mut line_level: Option<Level> = None;
+
+        // detect error and remove prefix
+        if line.starts_with("ERROR_MESSAGE|") {
+            line_level = Some(Level::Error);
+            line = line.strip_prefix("ERROR_MESSAGE|").unwrap();
+        } else if line.starts_with("WARNING_MESSAGE|") {
+            line_level = Some(Level::Warning);
+            line = line.strip_prefix("WARNING_MESSAGE|").unwrap();
+        } else if line.starts_with("LOGIC_MESSAGE|") {
+            line_level = Some(Level::Logic);
+            line = line.strip_prefix("LOGIC_MESSAGE|").unwrap();
+        }
+
+        match line_level {
+            Some(Level::Error) => eprintln!("{}", line.red()),
+            Some(Level::Warning) => eprintln!("{}", line.yellow()),
+            Some(Level::Logic) => eprintln!("{}", line.green()),
+            None => eprintln!("{}", line),
+        }
+    }
+}
+
 fn default_opencode_prompt(args: &Cli, command_res: &Output) -> Vec<String> {
     let skill_str = match get_skill("debugging.md") {
         Some(s) => s,
@@ -39,7 +68,9 @@ fn default_opencode_prompt(args: &Cli, command_res: &Output) -> Vec<String> {
             msg::error(
                 "S001",
                 "cannot locate skill",
-                Some("ensure skills directory exists at src/skills/"),
+                Some(
+                    "ensure skills directory exists at /home/qscheetz/Documents/Sentinel/src/skills",
+                ),
             );
             exit(1);
         }
@@ -61,7 +92,7 @@ fn default_opencode_prompt(args: &Cli, command_res: &Output) -> Vec<String> {
             "Fix level: {:?}. At 'Errors' level fix ONLY compilation errors (ignore warnings). At 'Warning' level fix errors AND warnings. At 'Logic' level fix errors, warnings, AND logic issues.",
             args.level
         ),
-        "Fix the issues according to the level, and provide a summary of what you did, dont stop till its fixed."
+        "Fix the issues according to the level, and provide a summary of what you did, dont stop till its fixed. Output must use one line per result prefixed with ERROR_MESSAGE|, WARNING_MESSAGE|, or LOGIC_MESSAGE|. Do not use ANSI escapes. Do not use markdown styling. Do not add extra commentary."
             .to_string(),
     ]
 }
@@ -88,7 +119,10 @@ fn fix(args: Cli, command_res: Output) {
             let Ok(stdout) = std::str::from_utf8(&o.stdout) else {
                 return;
             };
-            eprint!("{}", stdout);
+
+            eprintln!("{}", stdout);
+            eprint!("\n\n");
+            render_marked_output(stdout);
         }
         Err(_) => {
             msg::error(
@@ -138,7 +172,10 @@ fn main() {
 
     msg::warn("compilation failed, attempting fix...");
 
-    if let Ok(stderr) = std::str::from_utf8(&output.stderr) {
+    // NOTE: copm
+    if args.verbose
+        && let Ok(stderr) = std::str::from_utf8(&output.stderr)
+    {
         eprint!("{}", stderr);
     }
 

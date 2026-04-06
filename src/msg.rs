@@ -12,18 +12,18 @@ pub fn step(text: &str) -> Spinner {
         format!(
             "{} {}",
             format!("[{}/{}]", step, NUM_STEPS).dimmed(),
-            text.bold()
+            text.purple().bold()
         ),
     )
 }
 
 pub fn success(text: &str) {
-    eprintln!("{} {}", "✓".green().bold(), text.green());
+    eprintln!("\n{} {}", "✓".green().bold(), text.green());
 }
 
 #[allow(dead_code)]
 pub fn warn(text: &str) {
-    eprintln!("{} {}", "⚠".yellow().bold(), text.yellow());
+    eprintln!("\n{} {}", "⚠".yellow().bold(), text.yellow());
 }
 
 pub fn error(code: &str, text: &str, hint: Option<&str>) {
@@ -35,7 +35,7 @@ pub fn error(code: &str, text: &str, hint: Option<&str>) {
         text
     );
     if let Some(h) = hint {
-        eprintln!("  {} {}", "hint:".cyan(), h);
+        eprintln!("\n  {} {}", "hint:".cyan(), h);
     }
 }
 
