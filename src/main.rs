@@ -1,20 +1,33 @@
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use std::{
     fs,
-    process::{Command, Output, exit},
+    process::{exit, Command, Output},
 };
+
+#[derive(Clone, ValueEnum, Debug)]
+enum Level {
+    Errors,
+    Warning,
+    Logic,
+}
 
 #[derive(Parser)]
 struct Cli {
     #[arg(short, long, default_value = "opencode/big-pickle")]
     model: String,
 
+    #[arg(short, long, value_enum, default_value_t= Level::Errors)]
+    level: Level,
+
     compiler: String,
     compilation_args: Vec<String>,
 }
 
 fn get_skill(skill_name: &str) -> Option<String> {
-    let skill_path = format!("{}/{}", "src/skills", skill_name);
+    let skill_path = format!(
+        "{}/{}",
+        "/home/qscheetz/Documents/Sentinel/src/skills", skill_name
+    );
     fs::read_to_string(skill_path).ok()
 }
 
@@ -46,7 +59,11 @@ fn fix(args: Cli, command_res: Output) {
             args.compiler,
             args.compilation_args.join(" ")
         ))
-        .arg("Fix the errors, and provide a summary of what you did, dont stop till its fixed. ")
+        .arg(format!(
+            "Fix level: {:?}. At 'Errors' level fix ONLY compilation errors (ignore warnings). At 'Warning' level fix errors AND warnings. At 'Logic' level fix errors, warnings, AND logic issues.",
+            args.level
+        ))
+        .arg("Fix the issues according to the level, and provide a summary of what you did, dont stop till its fixed.")
         .output();
 
     match output {
