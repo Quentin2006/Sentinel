@@ -3,56 +3,11 @@ use std::{
     fs,
     process::{Command, Output, exit},
 };
-
-const NUM_STEPS: u8 = 2;
-
-mod msg {
-    use colored::Colorize;
-
-    use crate::NUM_STEPS;
-
-    pub fn step(text: &str) {
-        static mut CUR_STEP: u8 = 0;
-        unsafe { CUR_STEP += 1 };
-        let step = unsafe { CUR_STEP };
-        eprintln!(
-            "{} {}",
-            format!("[{}/{}]", step, NUM_STEPS).dimmed(),
-            text.bold()
-        );
-    }
-
-    pub fn success(text: &str) {
-        eprintln!("{} {}", "✓".green().bold(), text.green());
-    }
-
-    #[allow(dead_code)]
-    pub fn warn(text: &str) {
-        eprintln!("{} {}", "⚠".yellow().bold(), text.yellow());
-    }
-
-    pub fn error(code: &str, text: &str, hint: Option<&str>) {
-        eprintln!(
-            "{} {}{} {}",
-            "✗".red().bold(),
-            "error".red().bold(),
-            format!("[{}]:", code).red(),
-            text
-        );
-        if let Some(h) = hint {
-            eprintln!("  {} {}", "hint:".cyan(), h);
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn info(text: &str) {
-        eprintln!("{} {}", "→".blue().bold(), text);
-    }
-}
+mod msg;
 
 #[derive(Clone, ValueEnum, Debug)]
 enum Level {
-    Errors,
+    Error,
     Warning,
     Logic,
 }
@@ -62,7 +17,7 @@ struct Cli {
     #[arg(short, long, default_value = "opencode/big-pickle")]
     model: String,
 
-    #[arg(short, long, value_enum, default_value_t= Level::Errors)]
+    #[arg(short, long, value_enum, default_value_t= Level::Warning)]
     level: Level,
 
     compiler: String,
@@ -112,9 +67,10 @@ fn default_opencode_prompt(args: &Cli, command_res: &Output) -> Vec<String> {
 }
 
 fn fix(args: Cli, command_res: Output) {
-    msg::step("Applying fix...");
+    let mut sp = msg::step("Applying fix");
     let res = default_opencode_prompt(&args, &command_res);
     let output = Command::new("opencode").args(res).output();
+    sp.stop();
 
     match output {
         Ok(o) => {
@@ -157,7 +113,7 @@ fn main() {
         exit(1);
     }
 
-    msg::step("Compiling...");
+    let mut sp = msg::step("Compiling");
     let output = match Command::new(args.compiler.clone())
         .args(args.compilation_args.clone())
         .output()
@@ -172,6 +128,8 @@ fn main() {
             exit(1);
         }
     };
+
+    sp.stop();
 
     if output.stderr.is_empty() {
         msg::success("compiled successfully");
