@@ -2,18 +2,24 @@
 
 > A compiler-agnostic AI-assisted build copilot that fixes compilation errors automatically.
 
-Sentinel is a compiler-agnostic CLI wrapper built in Rust that uses AI to fix **compilation errors only**. Run your normal compiler through Sentinel, and if the build fails, it will apply minimal fixes to make it compile, revalidate, and roll back if a fix doesn't work.
-
-**Important**: Sentinel fixes compilation errors. It does not refactor, improve, optimize, or change code that already compiles.
-
-## Status
-
-🚧 **Early Development** — This project is just starting. Nothing is stable yet.
+Sentinel is a compiler-agnostic CLI wrapper built in Rust that uses AI to fix compilation errors. Run your normal compiler (or any build system that outputs compiler messages) through Sentinel, and if the build fails, it will apply fixes to make it compile.
 
 ## Installation
 
 ```bash
-cargo install ai-sentinel
+# NOTE: this tool requires opencode to be installed and runnable via the 'opencode'
+# command, for more info on how to install on your system, look at https://opencode.ai/
+
+git clone https://github.com/Quentin2006/Sentinel.git
+cd Sentinel
+cargo install --path .
+
+# it will now be installed in
+~/.cargo/bin/ai-sentinel
+# but I recommend adding an alias such as the following
+alias sen="~/.cargo/bin/ai-sentinel"
+
+# in the rest of this file I will be using my alias
 ```
 
 ## Quick Start
@@ -21,66 +27,96 @@ cargo install ai-sentinel
 Run your normal compiler through Sentinel:
 
 ```bash
-sentinel g++ main.cpp
-sentinel gcc main.c -o main
-sentinel clang++ src/main.cpp -o app
+sen g++ main.cpp
+sen gcc main.c -o main
+sen clang++ src/main.cpp -o app
+sen make
 ```
 
-For development:
+## Example
 
 ```bash
-cargo run -- g++ main.cpp
-cargo run -- gcc main.c -o main
-```
+sen make
+  . [1/2] Compiling⚠ compilation failed, attempting fix...
+  src/gen.cpp: In function ‘std::vector<ObjectConfig> genLightsForCoaster(const std::vector<glm::vec<3, float, glm::packed_highp> >&, int, glm::vec3, float)’:
+  src/gen.cpp:17:44: warning: unused parameter ‘phase’ [-Wunused-parameter]
+    17 |                     glm::vec3 color, float phase) {
+        |                                      ~~~~~~^~~~~
+  src/mesh.cpp: In member function ‘int Mesh::loadSweep(const std::vector<glm::vec<3, float, glm::packed_highp> >&, int, int, float)’:
+  src/mesh.cpp:347:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
+    347 |       vertices.push_back({p1, glm::vec2(0.0f), normal1});
+        |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  src/mesh.cpp:348:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
+    348 |       vertices.push_back({p0, glm::vec2(0.0f), normal1});
+        |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  src/mesh.cpp:349:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
+    349 |       vertices.push_back({p2, glm::vec2(0.0f), normal1});
+        |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  src/mesh.cpp:355:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
+    355 |       vertices.push_back({p2, glm::vec2(0.0f), normal2});
+        |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  src/mesh.cpp:356:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
+    356 |       vertices.push_back({p0, glm::vec2(0.0f), normal2});
+        |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  src/mesh.cpp:357:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
+    357 |       vertices.push_back({p3, glm::vec2(0.0f), normal2});
+        |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  src/mesh.cpp:374:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
+    374 |       vertices.push_back(
+        |       ~~~~~~~~~~~~~~~~~~^
+    375 |           {circles[0][next_j], glm::vec2(0.0f), -tangentAtStart});
+        |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  src/mesh.cpp:376:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
+    376 |       vertices.push_back({circles[0][j], glm::vec2(0.0f), -tangentAtStart});
+        |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  src/mesh.cpp:377:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
+    377 |       vertices.push_back({smoothPath[0], glm::vec2(0.0f), -tangentAtStart});
+        |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  src/mesh.cpp:387:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
+    387 |       vertices.push_back({smoothPath[last], glm::vec2(0.0f), tangentAtEnd});
+        |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  src/mesh.cpp:388:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
+    388 |       vertices.push_back({circles[last][j], glm::vec2(0.0f), tangentAtEnd});
+        |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  src/mesh.cpp:389:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
+    389 |       vertices.push_back(
+        |       ~~~~~~~~~~~~~~~~~~^
+    390 |           {circles[last][next_j], glm::vec2(0.0f), tangentAtEnd});
+        |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  src/app.cpp: In member function ‘void App::run()’:
+  src/app.cpp:229:68: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
+    229 |   terrainV1 = {{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}};
+        |                                                                    ^
+  src/app.cpp:230:68: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
+    230 |   terrainV2 = {{0.0f, -1.f, 3.0f}, {1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}};
+        |                                                                    ^
+  src/app.cpp:231:68: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
+    231 |   terrainV3 = {{5.0f, 0.3f, 0.0f}, {0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}};
+        |                                                                    ^
+  src/fractal_terrain.cpp: In function ‘Vertex midVertex(Vertex&, Vertex&)’:
+  src/fractal_terrain.cpp:58:24: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
+    58 |   return {pos, texCoord};
+        |                        ^
+  .   [2/2] Applying fix✓ fix applied successfully
+  Now I understand the issues. I need to:
+  1. Add a default value for `materialId` in the Vertex struct (fixes all initializer warnings)
+  2. Fix the unused parameter `phase` in gen.cpp
+  Build successful with no warnings. Fixed all 18 warnings with 2 minimal changes:
 
-Sentinel runs silently. No compiler output clutters your terminal. It either works, or it doesn't.
+  1. **`src/vertexBuffer.h`**: Added default value `= 0` to `materialId` - fixes all 17 missing initializer warnings
+  2. **`src/gen.cpp:17`**: Changed unused `phase` parameter to anonymous `float` - fixes unused parameter warning
+```
 
 ## How It Works
 
-Sentinel wraps your compiler and handles errors silently:
+Sentinel wraps your compiler and handles errors:
 
-1. **Invocation**: Run your compiler through Sentinel (e.g., `sentinel gcc ...`).
-2. **Capture**: Sentinel intercepts all compiler output — you see nothing.
-3. **Fix**: If compilation fails, Sentinel silently applies minimal fixes.
-4. **Validate**: Sentinel recompiles to verify the fix works.
-5. **Rollback**: If a fix fails, Sentinel restores the original file.
+1. **Invocation**: Run your compiler through Sentinel (e.g., `sen gcc ...`).
+2. **Capture**: Sentinel intercepts all compiler output.
+3. **Fix**: If compilation fails, Sentinel will prompt opencode to fix the errors.
+4. **Validate**: Opencode recompiles to verify the fix works.
 
-The loop continues silently until compilation succeeds or Sentinel gives up. No warnings, no errors, no noise.
-
-## Safety Model
-
-Sentinel is built on a "Trust but Verify" model:
-
-- **Snapshots**: Sentinel snapshots files before any modification.
-- **Targeted Edits**: Fixes are small and localized rather than broad refactors.
-- **Continuous Validation**: Every applied fix is immediately validated by recompilation.
-- **Automatic Rollback**: If a fix fails or introduces new errors, Sentinel reverts to the last known good state.
-
-## Scope
-
-Sentinel fixes **compilation errors only**:
-
-- Missing semicolons
-- Unbalanced braces/parentheses  
-- Typos in identifiers
-- Missing includes
-- Type mismatches that block compilation
-
-Sentinel does **NOT**:
-
-- Refactor code
-- Fix warnings (unless they block compilation)
-- Improve code style
-- Optimize performance
-- Change code that already compiles
-
-## Roadmap
-
-- [x] Compiler wrapper execution and command proxying
-- [x] AI integration for targeted fix generation
-- [ ] Automatic snapshot and rollback safety system
-- [ ] Configuration file support (`Sentinel.toml`)
-- [ ] Interactive fix review mode
+The loop continues until compilation succeeds or opencode gives up.
 
 ## License
 
