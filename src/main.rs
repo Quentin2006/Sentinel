@@ -1,7 +1,7 @@
 use clap::{Parser, ValueEnum};
 use colored::Colorize;
 use std::{
-    fs,
+    io::{self, Write},
     process::{Command, Output, exit},
 };
 mod msg;
@@ -25,15 +25,13 @@ struct Cli {
     verbose: bool,
 
     compiler: String,
+    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     compilation_args: Vec<String>,
 }
 
-fn get_skill(skill_name: &str) -> Option<String> {
-    let skill_path = format!(
-        "{}/{}",
-        "/home/qscheetz/Documents/Sentinel/src/skills", skill_name
-    );
-    fs::read_to_string(skill_path).ok()
+fn show_compiler_output(output: &Output) {
+    let _ = io::stdout().write_all(&output.stdout);
+    let _ = io::stderr().write_all(&output.stderr);
 }
 
 fn render_marked_output(text: &str) {
@@ -62,19 +60,8 @@ fn render_marked_output(text: &str) {
 }
 
 fn default_opencode_prompt(args: &Cli, command_res: &Output) -> Vec<String> {
-    let skill_str = match get_skill("debugging.md") {
-        Some(s) => s,
-        None => {
-            msg::error(
-                "S001",
-                "cannot locate skill",
-                Some(
-                    "ensure skills directory exists at /home/qscheetz/Documents/Sentinel/src/skills",
-                ),
-            );
-            exit(1);
-        }
-    };
+    // Bundle the instructions so installed binaries work outside this checkout.
+    let skill_str = include_str!("skills/debugging.md").to_string();
 
     vec![
         "-m".to_string(),
@@ -82,11 +69,16 @@ fn default_opencode_prompt(args: &Cli, command_res: &Output) -> Vec<String> {
         "--pure".to_string(),
         "run".to_string(),
         skill_str,
-        format!("{}: {:#?}", "the following is the compilation results", command_res),
         format!(
-            "Ensure you use the following compilation command: {} {}",
+            "Build status: {}\nstdout:\n{}\nstderr:\n{}",
+            command_res.status,
+            String::from_utf8_lossy(&command_res.stdout),
+            String::from_utf8_lossy(&command_res.stderr)
+        ),
+        format!(
+            "Build executable: {:?}. Arguments: {:?}. Preserve these argument boundaries when running the build.",
             args.compiler,
-            args.compilation_args.join(" ")
+            args.compilation_args
         ),
         format!(
             "Fix level: {:?}. At 'Errors' level fix ONLY compilation errors (ignore warnings). At 'Warning' level fix errors AND warnings. At 'Logic' level fix errors, warnings, AND logic issues.",
@@ -97,17 +89,16 @@ fn default_opencode_prompt(args: &Cli, command_res: &Output) -> Vec<String> {
     ]
 }
 
-fn fix(args: Cli, command_res: Output) {
+fn fix(args: &Cli, command_res: Output) {
     let mut sp = msg::step("Applying fix");
-    let res = default_opencode_prompt(&args, &command_res);
+    let res = default_opencode_prompt(args, &command_res);
     let output = Command::new("opencode").args(res).output();
     sp.stop();
 
     match output {
         Ok(o) => {
-            if o.status.success() {
-                msg::success("fix applied successfully");
-            } else {
+            if !o.status.success() {
+                show_compiler_output(&o);
                 msg::error(
                     "S002",
                     "fix attempt failed",
@@ -116,13 +107,28 @@ fn fix(args: Cli, command_res: Output) {
                 exit(1);
             }
 
-            let Ok(stdout) = std::str::from_utf8(&o.stdout) else {
-                return;
-            };
+            render_marked_output(&String::from_utf8_lossy(&o.stdout));
+            let _ = io::stderr().write_all(&o.stderr);
 
-            eprintln!("{}", stdout);
-            eprint!("\n\n");
-            render_marked_output(stdout);
+            // An agent process exiting successfully does not prove the build passed.
+            match Command::new(&args.compiler)
+                .args(&args.compilation_args)
+                .output()
+            {
+                Ok(verified) => {
+                    show_compiler_output(&verified);
+                    if verified.status.success() {
+                        msg::success("build verified successfully");
+                    } else {
+                        msg::error("S006", "build still fails after repair", None);
+                        exit(1);
+                    }
+                }
+                Err(_) => {
+                    msg::error("S005", "failed to execute compiler for verification", None);
+                    exit(1);
+                }
+            }
         }
         Err(_) => {
             msg::error(
@@ -165,19 +171,19 @@ fn main() {
 
     sp.stop();
 
-    if output.stderr.is_empty() {
+    let should_repair = !output.status.success()
+        || (!matches!(args.level, Level::Error) && !output.stderr.is_empty());
+    if !should_repair {
+        show_compiler_output(&output);
         msg::success("compiled successfully");
         return;
     }
 
-    msg::warn("compilation failed, attempting fix...");
+    msg::warn("build diagnostics require attention, attempting fix...");
 
-    // NOTE: copm
-    if args.verbose
-        && let Ok(stderr) = std::str::from_utf8(&output.stderr)
-    {
-        eprint!("{}", stderr);
+    if args.verbose {
+        show_compiler_output(&output);
     }
 
-    fix(args, output);
+    fix(&args, output);
 }

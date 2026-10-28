@@ -1,127 +1,73 @@
 # Sentinel
 
-> A compiler-agnostic AI-assisted build copilot that fixes compilation errors automatically.
+A Rust command-line wrapper that captures build diagnostics, asks OpenCode to attempt a repair, and reruns the original build command to check its exit status.
 
-Sentinel is a compiler-agnostic CLI wrapper built in Rust that uses AI to fix compilation errors. Run your normal compiler (or any build system that outputs compiler messages) through Sentinel, and if the build fails, it will apply fixes to make it compile.
+Sentinel works with compiler and build commands such as GCC, Clang, and Make. It delegates source edits to OpenCode; it does not implement its own language parser or guarantee that a proposed repair is correct.
 
-## Installation
+## Requirements
 
-```bash
-# NOTE: this tool requires opencode to be installed and runnable via the 'opencode'
-# command, for more info on how to install on your system, look at https://opencode.ai/
+- Rust with support for the 2024 edition and Cargo.
+- [OpenCode](https://opencode.ai/) installed as `opencode`, with a configured model provider.
+- The compiler or build tool used by your project.
 
+The repair agent can edit files in the working directory and may incur model-provider charges. Use a version-controlled checkout and review its changes before keeping them.
+
+## Install
+
+```sh
 git clone https://github.com/Quentin2006/Sentinel.git
 cd Sentinel
 cargo install --path .
-
-# it will now be installed in
-~/.cargo/bin/ai-sentinel
-# but I recommend adding an alias such as the following
-alias sen="~/.cargo/bin/ai-sentinel"
-
-# in the rest of this file I will be using my alias
 ```
 
-## Quick Start
+Cargo installs `ai-sentinel` into its binary directory (usually `~/.cargo/bin`). The debugging instructions are embedded in the executable, so installation does not depend on a particular checkout path.
 
-Run your normal compiler through Sentinel:
+## Usage
 
-```bash
-sen g++ main.cpp
-sen gcc main.c -o main
-sen clang++ src/main.cpp -o app
-sen make
+Run from the project you want to build:
+
+```sh
+ai-sentinel gcc main.c -Wall -o app
+ai-sentinel clang++ src/main.cpp -o app
+ai-sentinel make
+ai-sentinel --verbose --model YOUR_MODEL_ID make
+ai-sentinel --level warning make
 ```
 
-## Example
+Sentinel options precede the compiler or build command. Everything following that command is passed to it as arguments, including compiler flags.
 
-```bash
-sen make
-  . [1/2] Compiling⚠ compilation failed, attempting fix...
-  src/gen.cpp: In function ‘std::vector<ObjectConfig> genLightsForCoaster(const std::vector<glm::vec<3, float, glm::packed_highp> >&, int, glm::vec3, float)’:
-  src/gen.cpp:17:44: warning: unused parameter ‘phase’ [-Wunused-parameter]
-    17 |                     glm::vec3 color, float phase) {
-        |                                      ~~~~~~^~~~~
-  src/mesh.cpp: In member function ‘int Mesh::loadSweep(const std::vector<glm::vec<3, float, glm::packed_highp> >&, int, int, float)’:
-  src/mesh.cpp:347:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
-    347 |       vertices.push_back({p1, glm::vec2(0.0f), normal1});
-        |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  src/mesh.cpp:348:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
-    348 |       vertices.push_back({p0, glm::vec2(0.0f), normal1});
-        |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  src/mesh.cpp:349:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
-    349 |       vertices.push_back({p2, glm::vec2(0.0f), normal1});
-        |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  src/mesh.cpp:355:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
-    355 |       vertices.push_back({p2, glm::vec2(0.0f), normal2});
-        |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  src/mesh.cpp:356:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
-    356 |       vertices.push_back({p0, glm::vec2(0.0f), normal2});
-        |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  src/mesh.cpp:357:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
-    357 |       vertices.push_back({p3, glm::vec2(0.0f), normal2});
-        |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  src/mesh.cpp:374:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
-    374 |       vertices.push_back(
-        |       ~~~~~~~~~~~~~~~~~~^
-    375 |           {circles[0][next_j], glm::vec2(0.0f), -tangentAtStart});
-        |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  src/mesh.cpp:376:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
-    376 |       vertices.push_back({circles[0][j], glm::vec2(0.0f), -tangentAtStart});
-        |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  src/mesh.cpp:377:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
-    377 |       vertices.push_back({smoothPath[0], glm::vec2(0.0f), -tangentAtStart});
-        |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  src/mesh.cpp:387:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
-    387 |       vertices.push_back({smoothPath[last], glm::vec2(0.0f), tangentAtEnd});
-        |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  src/mesh.cpp:388:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
-    388 |       vertices.push_back({circles[last][j], glm::vec2(0.0f), tangentAtEnd});
-        |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  src/mesh.cpp:389:25: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
-    389 |       vertices.push_back(
-        |       ~~~~~~~~~~~~~~~~~~^
-    390 |           {circles[last][next_j], glm::vec2(0.0f), tangentAtEnd});
-        |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  src/app.cpp: In member function ‘void App::run()’:
-  src/app.cpp:229:68: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
-    229 |   terrainV1 = {{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}};
-        |                                                                    ^
-  src/app.cpp:230:68: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
-    230 |   terrainV2 = {{0.0f, -1.f, 3.0f}, {1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}};
-        |                                                                    ^
-  src/app.cpp:231:68: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
-    231 |   terrainV3 = {{5.0f, 0.3f, 0.0f}, {0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}};
-        |                                                                    ^
-  src/fractal_terrain.cpp: In function ‘Vertex midVertex(Vertex&, Vertex&)’:
-  src/fractal_terrain.cpp:58:24: warning: missing initializer for member ‘Vertex::materialId’ [-Wmissing-field-initializers]
-    58 |   return {pos, texCoord};
-        |                        ^
-  .   [2/2] Applying fix✓ fix applied successfully
-  Now I understand the issues. I need to:
-  1. Add a default value for `materialId` in the Vertex struct (fixes all initializer warnings)
-  2. Fix the unused parameter `phase` in gen.cpp
-  Build successful with no warnings. Fixed all 18 warnings with 2 minimal changes:
+Repair scopes:
 
-  1. **`src/vertexBuffer.h`**: Added default value `= 0` to `materialId` - fixes all 17 missing initializer warnings
-  2. **`src/gen.cpp:17`**: Changed unused `phase` parameter to anonymous `float` - fixes unused parameter warning
+- `error` (default): request a repair when the build exits unsuccessfully. Successful builds that write warnings to stderr do not trigger a repair.
+- `warning`: also request a repair when a successful build writes diagnostics to stderr; ask the agent to address errors and warnings.
+- `logic`: use the same trigger as `warning`, but also ask the agent to inspect logic issues. This is a prompt scope, not a static-analysis guarantee.
+
+## Execution flow
+
+1. Run the supplied build command and capture its status, stdout, and stderr.
+2. If repair is needed, invoke OpenCode once with the diagnostics, selected model, repair scope, and embedded debugging instructions.
+3. If OpenCode exits successfully, independently rerun the original build command.
+4. Return success only if that verification build exits successfully. A failing repair agent or verification build returns a nonzero status.
+
+OpenCode may perform its own iterations during that single invocation. Sentinel does not run an unbounded outer repair loop. A successful verification establishes build success, not functional correctness or warning-free output. Run your project's tests and inspect the diff separately.
+
+## Development checks
+
+```sh
+cargo fmt --check
+cargo test
+cargo clippy --all-targets -- -D warnings
 ```
 
-## How It Works
+The Unix integration tests use isolated fake compiler and agent executables. They cover successful builds with stderr output, failed builds with stdout-only or no diagnostics, compiler flag forwarding, repair-agent failures, verification failures, and warning-scope triggering. They do not call a real model or measure repair accuracy.
 
-Sentinel wraps your compiler and handles errors:
+## Source map
 
-1. **Invocation**: Run your compiler through Sentinel (e.g., `sen gcc ...`).
-2. **Capture**: Sentinel intercepts all compiler output.
-3. **Fix**: If compilation fails, Sentinel will prompt opencode to fix the errors.
-4. **Validate**: Opencode recompiles to verify the fix works.
-
-The loop continues until compilation succeeds or opencode gives up.
+- `src/main.rs`: CLI arguments, build execution, repair prompt, and verification.
+- `src/msg.rs`: terminal progress and diagnostic rendering.
+- `src/skills/debugging.md`: embedded repair instructions.
+- `tests/cli.rs`: deterministic process-level regression tests.
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-## Contributing
-
-Contributions are welcome once the project reaches a stable state. Check back later for contribution guidelines.
+[MIT](LICENSE).
